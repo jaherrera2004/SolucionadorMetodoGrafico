@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programación Lineal - Método Gráfico</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+
+        .constraint-input {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            margin: 0 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        select {
+            padding: 5px;
+            margin: 0 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        #canvas {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+        }
+
+        .procedure {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-left: 3px solid #007bff;
+        }
+
+        .solution {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Solucionador de Programación Lineal - Método Gráfico</h1>
+
+        <div class="input-section">
+            <h3>Función Objetivo</h3>
+            <div>
+                <select id="objective-type">
+                    <option value="max">Maximizar</option>
+                    <option value="min">Minimizar</option>
+                </select>
+                Z = <input type="number" id="c1" value="3" step="0.1">x₁ +
+                <input type="number" id="c2" value="2" step="0.1">x₂
+            </div>
+
+            <h3>Restricciones</h3>
+            <div id="constraints">
+                <div class="constraint-input">
+                    <input type="number" class="a1" value="2" step="0.1">x₁ +
+                    <input type="number" class="a2" value="1" step="0.1">x₂
+                    <select class="operator">
+                        <option value="<=">≤</option>
+                        <option value=">=">≥</option>
+                        <option value="=">=</option>
+                    </select>
+                    <input type="number" class="b" value="20" step="0.1">
+                </div>
+                <div class="constraint-input">
+                    <input type="number" class="a1" value="1" step="0.1">x₁ +
+                    <input type="number" class="a2" value="2" step="0.1">x₂
+                    <select class="operator">
+                        <option value="<=">≤</option>
+                        <option value=">=">≥</option>
+                        <option value="=">=</option>
+                    </select>
+                    <input type="number" class="b" value="16" step="0.1">
+                </div>
+                <div class="constraint-input">
+                    <input type="number" class="a1" value="1" step="0.1">x₁ +
+                    <input type="number" class="a2" value="0" step="0.1">x₂
+                    <select class="operator">
+                        <option value="<=">≤</option>
+                        <option value=">=">≥</option>
+                        <option value="=">=</option>
+                    </select>
+                    <input type="number" class="b" value="8" step="0.1">
+                </div>
+            </div>
+
+            <button onclick="addConstraint()">Agregar Restricción</button>
+            <button onclick="solve()">Resolver</button>
+        </div>
+
+        <div class="grid">
+            <div>
+                <canvas id="canvas" width="500" height="500"></canvas>
+            </div>
+            <div class="results">
+                <div id="procedure" class="procedure"></div>
+                <div id="solution" class="solution"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let constraints = [];
+        let vertices = [];
+        let solution = null;
+
+        function addConstraint() {
+            const constraintsDiv = document.getElementById('constraints');
+            const newConstraint = document.createElement('div');
+            newConstraint.className = 'constraint-input';
+            newConstraint.innerHTML = `
+                <input type="number" class="a1" value="1" step="0.1">x₁ + 
+                <input type="number" class="a2" value="1" step="0.1">x₂ 
+                <select class="operator">
+                    <option value="<=">≤</option>
+                    <option value=">=">≥</option>
+                    <option value="=">=</option>
+                </select>
+                <input type="number" class="b" value="10" step="0.1">
+                <button onclick="this.parentElement.remove()" style="background-color: #dc3545; margin-left: 10px;">Eliminar</button>
+            `;
+            constraintsDiv.appendChild(newConstraint);
+        }
+
+        function getConstraints() {
+            const constraintInputs = document.querySelectorAll('.constraint-input');
+            constraints = [];
+
+            constraintInputs.forEach(input => {
+                const a1 = parseFloat(input.querySelector('.a1').value) || 0;
+                const a2 = parseFloat(input.querySelector('.a2').value) || 0;
+                const operator = input.querySelector('.operator').value;
+                const b = parseFloat(input.querySelector('.b').value) || 0;
+
+                constraints.push({ a1, a2, operator, b });
+            });
+
+            // Agregar restricciones de no negatividad
+            constraints.push({ a1: 1, a2: 0, operator: '>=', b: 0 }); // x1 >= 0
+            constraints.push({ a1: 0, a2: 1, operator: '>=', b: 0 }); // x2 >= 0
+        }
+
+        function findIntersection(c1, c2) {
+            // Resuelve el sistema de ecuaciones para encontrar intersección
+            const det = c1.a1 * c2.a2 - c1.a2 * c2.a1;
+
+            if (Math.abs(det) < 1e-10) return null; // Líneas paralelas
+
+            const x1 = (c1.b * c2.a2 - c1.a2 * c2.b) / det;
+            const x2 = (c1.a1 * c2.b - c1.b * c2.a1) / det;
+
+            return { x1, x2 };
+        }
+
+        function isPointFeasible(point) {
+            for (let constraint of constraints) {
+                const value = constraint.a1 * point.x1 + constraint.a2 * point.x2;
+
+                if (constraint.operator === '<=' && value > constraint.b + 1e-10) return false;
+                if (constraint.operator === '>=' && value < constraint.b - 1e-10) return false;
+                if (constraint.operator === '=' && Math.abs(value - constraint.b) > 1e-10) return false;
+            }
+            return true;
+        }
+
+        function findVertices() {
+            vertices = [];
+
+            // Encontrar intersecciones de todas las combinaciones de restricciones
+            for (let i = 0; i < constraints.length; i++) {
+                for (let j = i + 1; j < constraints.length; j++) {
+                    const intersection = findIntersection(constraints[i], constraints[j]);
+
+                    if (intersection && isPointFeasible(intersection)) {
+                        // Verificar si ya existe este vértice
+                        const exists = vertices.some(v =>
+                            Math.abs(v.x1 - intersection.x1) < 1e-8 &&
+                            Math.abs(v.x2 - intersection.x2) < 1e-8
+                        );
+
+                        if (!exists) {
+                            vertices.push(intersection);
+                        }
+                    }
+                }
+            }
+        }
+
+        function evaluateObjective(point) {
+            const c1 = parseFloat(document.getElementById('c1').value) || 0;
+            const c2 = parseFloat(document.getElementById('c2').value) || 0;
+            return c1 * point.x1 + c2 * point.x2;
+        }
+
+        function solve() {
+            getConstraints();
+            findVertices();
+
+            if (vertices.length === 0) {
+                document.getElementById('solution').innerHTML = '<h3>No hay solución factible</h3>';
+                return;
+            }
+
+            const objectiveType = document.getElementById('objective-type').value;
+            let bestValue = objectiveType === 'max' ? -Infinity : Infinity;
+            let bestPoint = null;
+
+            vertices.forEach(vertex => {
+                const value = evaluateObjective(vertex);
+                if ((objectiveType === 'max' && value > bestValue) ||
+                    (objectiveType === 'min' && value < bestValue)) {
+                    bestValue = value;
+                    bestPoint = vertex;
+                }
+            });
+
+            solution = { point: bestPoint, value: bestValue };
+
+            displayProcedure();
+            displaySolution();
+            drawGraph();
+        }
+
+        function displayProcedure() {
+            const c1 = parseFloat(document.getElementById('c1').value) || 0;
+            const c2 = parseFloat(document.getElementById('c2').value) || 0;
+            const objType = document.getElementById('objective-type').value === 'max' ? 'Maximizar' : 'Minimizar';
+
+            let html = `<h3>Procedimiento</h3>`;
+            html += `<div class="step"><strong>Paso 1:</strong> Función objetivo: ${objType} Z = ${c1}x₁ + ${c2}x₂</div>`;
+
+            html += `<div class="step"><strong>Paso 2:</strong> Restricciones:<br>`;
+            constraints.slice(0, -2).forEach((c, i) => {
+                html += `${c.a1}x₁ + ${c.a2}x₂ ${c.operator} ${c.b}<br>`;
+            });
+            html += `x₁ ≥ 0, x₂ ≥ 0</div>`;
+
+            html += `<div class="step"><strong>Paso 3:</strong> Vértices de la región factible:<br>`;
+            vertices.forEach((v, i) => {
+                html += `V${i + 1}: (${v.x1.toFixed(2)}, ${v.x2.toFixed(2)}) → Z = ${evaluateObjective(v).toFixed(2)}<br>`;
+            });
+            html += `</div>`;
+
+            document.getElementById('procedure').innerHTML = html;
+        }
+
+        function displaySolution() {
+            if (!solution) return;
+
+            const objType = document.getElementById('objective-type').value === 'max' ? 'máximo' : 'mínimo';
+            const html = `
+                <h3>Solución Óptima</h3>
+                <p><strong>Punto óptimo:</strong> x₁ = ${solution.point.x1.toFixed(2)}, x₂ = ${solution.point.x2.toFixed(2)}</p>
+                <p><strong>Valor ${objType}:</strong> Z = ${solution.value.toFixed(2)}</p>
+            `;
+
+            document.getElementById('solution').innerHTML = html;
+        }
+
+        function drawGraph() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Limpiar canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Configurar sistema de coordenadas
+            const maxX = Math.max(...vertices.map(v => v.x1), 10);
+            const maxY = Math.max(...vertices.map(v => v.x2), 10);
+            const scaleX = (width - 80) / (maxX * 1.2);
+            const scaleY = (height - 80) / (maxY * 1.2);
+            const scale = Math.min(scaleX, scaleY);
+
+            function toCanvasX(x) { return 40 + x * scale; }
+            function toCanvasY(y) { return height - 40 - y * scale; }
+
+            // Dibujar ejes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(40, height - 40);
+            ctx.lineTo(width - 20, height - 40);
+            ctx.moveTo(40, height - 40);
+            ctx.lineTo(40, 20);
+            ctx.stroke();
+
+            // Etiquetas de ejes
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.fillText('x₁', width - 30, height - 20);
+            ctx.fillText('x₂', 20, 30);
+            ctx.fillText('0', 25, height - 25);
+
+            // Dibujar líneas de restricciones
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            constraints.slice(0, -2).forEach((constraint, i) => {
+                ctx.beginPath();
+
+                if (Math.abs(constraint.a2) < 1e-10) {
+                    // Línea vertical
+                    const x = constraint.b / constraint.a1;
+                    ctx.moveTo(toCanvasX(x), 0);
+                    ctx.lineTo(toCanvasX(x), height);
+                } else if (Math.abs(constraint.a1) < 1e-10) {
+                    // Línea horizontal
+                    const y = constraint.b / constraint.a2;
+                    ctx.moveTo(0, toCanvasY(y));
+                    ctx.lineTo(width, toCanvasY(y));
+                } else {
+                    // Línea general
+                    const x1 = 0;
+                    const y1 = (constraint.b - constraint.a1 * x1) / constraint.a2;
+                    const x2 = maxX * 1.2;
+                    const y2 = (constraint.b - constraint.a1 * x2) / constraint.a2;
+
+                    ctx.moveTo(toCanvasX(x1), toCanvasY(y1));
+                    ctx.lineTo(toCanvasX(x2), toCanvasY(y2));
+                }
+
+                ctx.stroke();
+            });
+
+            // Dibujar región factible
+            if (vertices.length > 0) {
+                // Ordenar vértices por ángulo para formar polígono
+                const centroid = vertices.reduce((sum, v) => ({
+                    x1: sum.x1 + v.x1,
+                    x2: sum.x2 + v.x2
+                }), { x1: 0, x2: 0 });
+                centroid.x1 /= vertices.length;
+                centroid.x2 /= vertices.length;
+
+                const sortedVertices = vertices.slice().sort((a, b) => {
+                    const angleA = Math.atan2(a.x2 - centroid.x2, a.x1 - centroid.x1);
+                    const angleB = Math.atan2(b.x2 - centroid.x2, b.x1 - centroid.x1);
+                    return angleA - angleB;
+                });
+
+                ctx.fillStyle = 'rgba(0, 123, 255, 0.3)';
+                ctx.beginPath();
+                sortedVertices.forEach((vertex, i) => {
+                    if (i === 0) {
+                        ctx.moveTo(toCanvasX(vertex.x1), toCanvasY(vertex.x2));
+                    } else {
+                        ctx.lineTo(toCanvasX(vertex.x1), toCanvasY(vertex.x2));
+                    }
+                });
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Dibujar vértices
+            ctx.fillStyle = '#007bff';
+            vertices.forEach(vertex => {
+                ctx.beginPath();
+                ctx.arc(toCanvasX(vertex.x1), toCanvasY(vertex.x2), 5, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Etiqueta del vértice
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.fillText(`(${vertex.x1.toFixed(1)}, ${vertex.x2.toFixed(1)})`,
+                    toCanvasX(vertex.x1) + 8, toCanvasY(vertex.x2) - 8);
+                ctx.fillStyle = '#007bff';
+            });
+
+            // Destacar solución óptima
+            if (solution) {
+                ctx.fillStyle = '#dc3545';
+                ctx.beginPath();
+                ctx.arc(toCanvasX(solution.point.x1), toCanvasY(solution.point.x2), 8, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+
+        // Resolver ejemplo inicial
+        window.onload = function () {
+            solve();
+        };
+    </script>
+</body>
+
+</html>
